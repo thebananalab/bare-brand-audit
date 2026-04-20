@@ -87,7 +87,7 @@ export default async function handler(req, res) {
 
   try {
     await resend.emails.send({
-      from: 'BARE <onboarding@resend.dev>',
+      from: 'BARE <hello@bananalab.studio>',
       to: email,
       subject: `BARE Report #${specimenId} — Score ${score}/100`,
       html,
