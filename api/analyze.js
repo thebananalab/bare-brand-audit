@@ -74,7 +74,7 @@ export default async function handler(req, res) {
     console.log('Gemini raw:', rawText.slice(0, 200));
 
     const text = rawText.replace(/```json|```/g, '').trim();
-    const m = text.match(/\{[\s\S]*?\}/);
+    const m = text.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('No JSON object in Gemini response: ' + text.slice(0, 80));
     const result = JSON.parse(m[0]);
 
