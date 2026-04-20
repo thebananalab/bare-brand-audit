@@ -4,7 +4,6 @@ import { getCacheKey, loadFromCache, saveToCache, diagText } from './utils'
 import { runDim } from './api'
 import CountUp from './components/CountUp'
 import DimRow from './components/DimRow'
-import ApiKeyModal from './components/ApiKeyModal'
 import EmailModal from './components/EmailModal'
 
 export default function App() {
@@ -16,8 +15,6 @@ export default function App() {
   const [results, setResults] = useState({});
   const [currentDim, setCurrentDim] = useState("");
   const [openDim, setOpenDim] = useState("typography");
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("bare_gemini_key") || "");
-  const [showKeyModal, setShowKeyModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const fileRef = useRef();
 
@@ -87,8 +84,8 @@ export default function App() {
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }, [results]);
 
-  const runAnalysis = async (keyOverride) => {
-    const activeKey = keyOverride || apiKey;
+  const runAnalysis = async () => {
+    const activeKey = null;
     if (!url.trim() && !imageBase64) return;
 
     const cacheKey = getCacheKey(url, imageBase64);
@@ -120,13 +117,6 @@ export default function App() {
     setTimeout(() => setShowEmailModal(true), 800);
   };
 
-  const handleSaveKey = (k) => {
-    localStorage.setItem("bare_gemini_key", k);
-    setApiKey(k);
-    setShowKeyModal(false);
-    runAnalysis(k);
-  };
-
   const reset = () => {
     setPhase("idle");
     setUrl("");
@@ -156,7 +146,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {showKeyModal && <ApiKeyModal onSave={handleSaveKey} />}
       {showEmailModal && bareScore != null && (
         <EmailModal
           score={bareScore}
@@ -171,15 +160,7 @@ export default function App() {
       <div className="rail">
         <div>/ BARE</div>
         <div className="pill"><span className="dot"/>DIAGNOSTIC · LIVE</div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span>{dateStr}</span>
-          <button
-            onClick={() => setShowKeyModal(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: apiKey ? "var(--ink)" : "var(--accent)", opacity: apiKey ? 0.5 : 1, textDecoration: "underline" }}
-          >
-            {apiKey ? "GEMINI ●" : "+ SET KEY"}
-          </button>
-        </div>
+        <span>{dateStr}</span>
       </div>
 
       {phase !== "done" && (
