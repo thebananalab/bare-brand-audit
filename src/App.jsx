@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { DIMENSIONS } from './constants'
 import { getCacheKey, loadFromCache, saveToCache, diagText } from './utils'
 import { runDim } from './api'
+import { saveReport } from './firebase'
 import CountUp from './components/CountUp'
 import DimRow from './components/DimRow'
 import EmailModal from './components/EmailModal'
@@ -114,6 +115,8 @@ export default function App() {
     setCurrentDim("");
     setPhase("done");
     saveToCache(cacheKey, next);
+    const avg = Math.round(Object.values(next).map(r => r?.score).filter(v => typeof v === "number").reduce((a, b) => a + b, 0) / DIMENSIONS.length);
+    saveReport({ score: avg, url: url || "image", results: next, specimenId, dateStr });
     setTimeout(() => setShowEmailModal(true), 800);
   };
 
