@@ -26,7 +26,7 @@ export const CACHE_TTL = 24 * 60 * 60 * 1000;
 export function getCacheKey(url, b64) {
   const u = url ? btoa(encodeURIComponent(url)).slice(0, 20) : "";
   const i = b64 ? b64.slice(0, 16) : "";
-  return "bare_v1_" + u + "_" + i;
+  return "bare_v2_" + u + "_" + i;
 }
 
 export function loadFromCache(key) {
