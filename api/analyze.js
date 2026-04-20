@@ -6,13 +6,13 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { url, imageBase64, imageMime, prompt } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables' });
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });
   }
 
-  const parts = [];
+  const content = [];
 
   if (url) {
     try {
@@ -31,51 +31,56 @@ export default async function handler(req, res) {
           .replace(/\s+/g, ' ')
           .trim()
           .slice(0, 7000);
-        parts.push({ text: 'Brand website content from ' + url + ':\n\n' + text });
+        content.push({ type: 'text', text: 'Brand website content from ' + url + ':\n\n' + text });
       } else {
-        parts.push({ text: 'Brand URL: ' + url + ' — could not fetch page. Analyze from domain/context only.' });
+        content.push({ type: 'text', text: 'Brand URL: ' + url + ' — could not fetch page. Analyze from domain/context only.' });
       }
     } catch {
-      parts.push({ text: 'Brand URL: ' + url + ' — fetch failed. Analyze from domain/context only.' });
+      content.push({ type: 'text', text: 'Brand URL: ' + url + ' — fetch failed. Analyze from domain/context only.' });
     }
   }
 
   if (imageBase64) {
-    parts.push({ inlineData: { mimeType: imageMime || 'image/jpeg', data: imageBase64 } });
-    parts.push({ text: url ? 'Also analyze this brand screenshot.' : 'Analyze this brand visual in full.' });
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: imageMime || 'image/jpeg', data: imageBase64 },
+    });
+    content.push({ type: 'text', text: url ? 'Also analyze this brand screenshot.' : 'Analyze this brand visual in full.' });
   }
 
   if (!url && !imageBase64) {
-    parts.push({ text: 'No brand data provided. Return score 0 with relevant flags.' });
+    content.push({ type: 'text', text: 'No brand data provided. Return score 0 with relevant flags.' });
   }
 
   try {
-    const geminiRes = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: prompt }] },
-          contents: [{ role: 'user', parts }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 400 },
-        }),
-      }
-    );
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        system: prompt,
+        messages: [{ role: 'user', content }],
+      }),
+    });
 
-    const data = await geminiRes.json();
+    const data = await anthropicRes.json();
 
     if (data.error) {
-      console.error('Gemini API error:', JSON.stringify(data.error));
+      console.error('Anthropic API error:', JSON.stringify(data.error));
       throw new Error(data.error.message);
     }
 
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log('Gemini raw:', rawText.slice(0, 200));
+    const rawText = data.content?.[0]?.text || '';
+    console.log('Claude raw:', rawText.slice(0, 200));
 
     const text = rawText.replace(/```json|```/g, '').trim();
     const m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('No JSON object in Gemini response: ' + text.slice(0, 80));
+    if (!m) throw new Error('No JSON in Claude response: ' + text.slice(0, 80));
     const result = JSON.parse(m[0]);
 
     return res.status(200).json(result);
@@ -83,9 +88,9 @@ export default async function handler(req, res) {
     console.error('analyze error:', e.message);
     return res.status(200).json({
       score: 0,
-      flags: ['GEMINI ERROR', (e.message || 'UNKNOWN').slice(0, 38).toUpperCase()],
-      verdict: 'Gemini API error. Check server configuration.',
-      improvement: 'Verify GEMINI_API_KEY in Vercel environment variables.',
+      flags: ['CLAUDE ERROR', (e.message || 'UNKNOWN').slice(0, 38).toUpperCase()],
+      verdict: 'Claude API error. Check server configuration.',
+      improvement: 'Verify ANTHROPIC_API_KEY in Vercel environment variables.',
     });
   }
 }
