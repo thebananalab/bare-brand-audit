@@ -18,6 +18,8 @@ export default function App() {
   const [openDim, setOpenDim] = useState("typography");
   const [showEmailModal, setShowEmailModal] = useState(false);
   const fileRef = useRef();
+  const recaptchaWidgetId = useRef(null);
+  const recaptchaResolveRef = useRef(null);
 
   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
     "accent": "#ff8c42",
@@ -68,6 +70,30 @@ export default function App() {
     window.parent.postMessage({ type: "__edit_mode_set_keys", edits: patch }, "*");
   };
 
+  useEffect(() => {
+    window.__bareRecaptchaCb = (token) => {
+      recaptchaResolveRef.current?.(token);
+      recaptchaResolveRef.current = null;
+    };
+    const render = () => {
+      const el = document.getElementById('recaptcha-bare');
+      if (!el || recaptchaWidgetId.current !== null) return;
+      recaptchaWidgetId.current = window.grecaptcha.render(el, {
+        sitekey: '6LcMesIsAAAAAEDy2xPSXq1BRdTZwSVYady-Hkzk',
+        size: 'invisible',
+        callback: '__bareRecaptchaCb',
+      });
+    };
+    if (window.grecaptcha?.render) render();
+    else window.onRecaptchaLoad = render;
+    return () => { delete window.__bareRecaptchaCb; };
+  }, []);
+
+  const getRecaptchaToken = () => new Promise((resolve) => {
+    recaptchaResolveRef.current = resolve;
+    window.grecaptcha.execute(recaptchaWidgetId.current);
+  });
+
   const handleImage = (file) => {
     if (!file) return;
     setImage(URL.createObjectURL(file));
@@ -86,7 +112,6 @@ export default function App() {
   }, [results]);
 
   const runAnalysis = async () => {
-    const activeKey = null;
     if (!url.trim() && !imageBase64) return;
 
     const cacheKey = getCacheKey(url, imageBase64);
@@ -98,6 +123,12 @@ export default function App() {
       return;
     }
 
+    let recaptchaToken = null;
+    if (window.grecaptcha && recaptchaWidgetId.current !== null) {
+      recaptchaToken = await getRecaptchaToken();
+      window.grecaptcha.reset(recaptchaWidgetId.current);
+    }
+
     setPhase("scanning");
     setResults({});
     setCurrentDim(DIMENSIONS[0].label);
@@ -107,7 +138,7 @@ export default function App() {
     for (const dim of DIMENSIONS) {
       setCurrentDim(dim.label);
       setOpenDim(dim.key);
-      const r = await runDim(dim.key, url, imageBase64, imageMime, activeKey);
+      const r = await runDim(dim.key, url, imageBase64, imageMime, null, recaptchaToken);
       next[dim.key] = r;
       setResults({ ...next });
       await new Promise(resolve => setTimeout(resolve, 180));
@@ -262,6 +293,7 @@ export default function App() {
               {phase === "scanning" ? "Analyzing…" : "Begin Diagnosis"}
               <span className="arrow">→</span>
             </button>
+            <div id="recaptcha-bare" />
           </div>
         </div>
       )}

@@ -5,11 +5,23 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { url, imageBase64, imageMime, prompt } = req.body;
+  const { url, imageBase64, imageMime, prompt, recaptchaToken } = req.body;
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!apiKey) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });
+  }
+
+  if (recaptchaSecret) {
+    if (!recaptchaToken) return res.status(403).json({ error: 'reCAPTCHA token missing' });
+    const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'secret=' + recaptchaSecret + '&response=' + recaptchaToken,
+    });
+    const verifyData = await verifyRes.json();
+    if (!verifyData.success) return res.status(403).json({ error: 'reCAPTCHA failed' });
   }
 
   const content = [];

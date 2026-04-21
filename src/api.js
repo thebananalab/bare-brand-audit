@@ -1,11 +1,11 @@
 import { PROMPTS } from './constants'
 import { fetchUrlContent } from './utils'
 
-export async function runDimViaServer(key, url, imageBase64, imageMime) {
+export async function runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken) {
   const res = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, imageBase64, imageMime, prompt: PROMPTS[key] }),
+    body: JSON.stringify({ url, imageBase64, imageMime, prompt: PROMPTS[key], recaptchaToken }),
   });
   if (!res.ok) throw new Error("Server " + res.status);
   return await res.json();
@@ -45,9 +45,9 @@ export async function runDimDirect(key, url, imageBase64, imageMime, apiKey) {
   return JSON.parse(m ? m[0] : text);
 }
 
-export async function runDim(key, url, imageBase64, imageMime, localApiKey) {
+export async function runDim(key, url, imageBase64, imageMime, localApiKey, recaptchaToken) {
   try {
-    return await runDimViaServer(key, url, imageBase64, imageMime);
+    return await runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken);
   } catch (serverErr) {
     if (localApiKey) {
       try {
