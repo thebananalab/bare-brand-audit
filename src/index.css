@@ -312,6 +312,16 @@ body { min-height: 100vh; overflow-x: hidden; }
   padding: 3px 7px;
 }
 
+.rate-limit-msg {
+  margin-top: 32px;
+  padding: 20px 24px;
+  border: 1px solid rgba(255,140,66,0.4);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+}
+.rate-limit-msg .eyebrow { margin-bottom: 8px; color: var(--accent); opacity: 1; }
+
 .run-btn {
   margin-top: auto;
   padding: 20px 24px;

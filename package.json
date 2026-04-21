@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "@vercel/og": "^0.11.1",
     "firebase": "^10.14.1",
     "react": "^18.3.1",

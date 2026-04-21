@@ -17,6 +17,7 @@ export default function App() {
   const [currentDim, setCurrentDim] = useState("");
   const [openDim, setOpenDim] = useState("typography");
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const fileRef = useRef();
   const recaptchaWidgetId = useRef(null);
   const recaptchaResolveRef = useRef(null);
@@ -136,15 +137,25 @@ export default function App() {
 
     const next = {};
     let tokenUsed = false;
-    for (const dim of DIMENSIONS) {
-      setCurrentDim(dim.label);
-      setOpenDim(dim.key);
-      const token = tokenUsed ? null : recaptchaToken;
-      tokenUsed = true;
-      const r = await runDim(dim.key, url, imageBase64, imageMime, null, token);
-      next[dim.key] = r;
-      setResults({ ...next });
-      await new Promise(resolve => setTimeout(resolve, 180));
+    try {
+      for (const dim of DIMENSIONS) {
+        setCurrentDim(dim.label);
+        setOpenDim(dim.key);
+        const token = tokenUsed ? null : recaptchaToken;
+        const isFirstDim = !tokenUsed;
+        tokenUsed = true;
+        const r = await runDim(dim.key, url, imageBase64, imageMime, null, token, isFirstDim);
+        next[dim.key] = r;
+        setResults({ ...next });
+        await new Promise(resolve => setTimeout(resolve, 180));
+      }
+    } catch (e) {
+      if (e.isRateLimit) {
+        setRateLimited(true);
+        setPhase("idle");
+        return;
+      }
+      throw e;
     }
     setCurrentDim("");
     setPhase("done");
@@ -156,6 +167,7 @@ export default function App() {
 
   const reset = () => {
     setPhase("idle");
+    setRateLimited(false);
     setUrl("");
     setImage(null);
     setImageBase64(null);
@@ -292,10 +304,17 @@ export default function App() {
               </div>
             </div>
 
-            <button className="run-btn" disabled={!canRun} onClick={() => runAnalysis()} style={{ marginTop: 32 }}>
-              {phase === "scanning" ? "Analyzing…" : "Begin Diagnosis"}
-              <span className="arrow">→</span>
-            </button>
+            {rateLimited ? (
+              <div className="rate-limit-msg">
+                <div className="eyebrow">/ LIMIT REACHED</div>
+                <div>3 audits per day. Come back tomorrow.</div>
+              </div>
+            ) : (
+              <button className="run-btn" disabled={!canRun} onClick={() => runAnalysis()} style={{ marginTop: 32 }}>
+                {phase === "scanning" ? "Analyzing…" : "Begin Diagnosis"}
+                <span className="arrow">→</span>
+              </button>
+            )}
             <div id="recaptcha-bare" />
           </div>
         </div>

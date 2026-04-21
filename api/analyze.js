@@ -1,3 +1,15 @@
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+let ratelimit;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  ratelimit = new Ratelimit({
+    redis: Redis.fromEnv(),
+    limiter: Ratelimit.fixedWindow(3, '1 d'),
+    analytics: false,
+  });
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -5,9 +17,15 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { url, imageBase64, imageMime, prompt, recaptchaToken } = req.body;
+  const { url, imageBase64, imageMime, prompt, recaptchaToken, isFirstDim } = req.body;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+
+  if (isFirstDim && ratelimit) {
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+    const { success } = await ratelimit.limit(ip);
+    if (!success) return res.status(429).json({ error: 'Limit of 3 audits per day reached. Come back tomorrow.' });
+  }
 
   if (!apiKey) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });

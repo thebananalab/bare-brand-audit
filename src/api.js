@@ -1,12 +1,16 @@
 import { PROMPTS } from './constants'
 import { fetchUrlContent } from './utils'
 
-export async function runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken) {
+export async function runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken, isFirstDim) {
   const res = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, imageBase64, imageMime, prompt: PROMPTS[key], recaptchaToken }),
+    body: JSON.stringify({ url, imageBase64, imageMime, prompt: PROMPTS[key], recaptchaToken, isFirstDim }),
   });
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({}));
+    throw Object.assign(new Error("RATE_LIMIT"), { isRateLimit: true, message: data.error || "3 audits per day reached." });
+  }
   if (!res.ok) throw new Error("Server " + res.status);
   return await res.json();
 }
@@ -45,10 +49,11 @@ export async function runDimDirect(key, url, imageBase64, imageMime, apiKey) {
   return JSON.parse(m ? m[0] : text);
 }
 
-export async function runDim(key, url, imageBase64, imageMime, localApiKey, recaptchaToken) {
+export async function runDim(key, url, imageBase64, imageMime, localApiKey, recaptchaToken, isFirstDim) {
   try {
-    return await runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken);
+    return await runDimViaServer(key, url, imageBase64, imageMime, recaptchaToken, isFirstDim);
   } catch (serverErr) {
+    if (serverErr.isRateLimit) throw serverErr;
     if (localApiKey) {
       try {
         return await runDimDirect(key, url, imageBase64, imageMime, localApiKey);
@@ -61,7 +66,7 @@ export async function runDim(key, url, imageBase64, imageMime, localApiKey, reca
       score: 0,
       flags: ["API UNREACHABLE", (serverErr.message || "").slice(0, 38).toUpperCase()],
       verdict: "Cannot reach API. Deploy to Vercel or set local key.",
-      improvement: "Click GEMINI in the top rail to set a local API key.",
+      improvement: "Deploy to Vercel or check server logs.",
     };
   }
 }

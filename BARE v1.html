@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BARE — Brand Aesthetic Reality Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;700&family=Archivo+Black&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  :root {
+    --paper: #ece7dd;
+    --paper-2: #e2dccf;
+    --ink: #0e0e0c;
+    --ink-2: #2a2a26;
+    --muted: #6c6a62;
+    --rule: #1a1a17;
+    --red: #c8261d;
+    --red-ink: #a01810;
+    --green: #2a6b3f;
+    --amber: #b8741f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Paper grain */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.05 0 0 0 0 0.04 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+  }
+  /* subtle vertical columns line */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(to right, rgba(14,14,12,0.035) 1px, transparent 1px);
+    background-size: calc(100% / 12) 100%;
+  }
+
+  .app { position: relative; z-index: 2; }
+
+  /* Top meta rail */
+  .rail {
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    gap: 24px;
+  }
+  .rail .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: var(--red);
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: blink 1.6s infinite;
+  }
+  @keyframes blink { 0%, 60% { opacity: 1; } 70%, 100% { opacity: 0.25; } }
+
+  /* Masthead */
+  .masthead {
+    border-bottom: 2px solid var(--rule);
+    padding: 22px 28px 18px;
+    display: grid;
+    grid-template-columns: 160px 1fr 160px;
+    align-items: end;
+    gap: 16px;
+  }
+  .masthead .left, .masthead .right {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .masthead .right { text-align: right; }
+  .wordmark {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: clamp(72px, 13vw, 200px);
+    letter-spacing: -0.04em;
+    line-height: 0.82;
+    color: var(--ink);
+    position: relative;
+    text-align: center;
+  }
+  .wordmark .over {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-6deg);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 0.22em;
+    letter-spacing: 0em;
+    color: var(--red);
+    white-space: nowrap;
+    border: 1.5px solid var(--red);
+    padding: 4px 14px 5px;
+    background: rgba(236, 231, 221, 0.85);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .subhead {
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    line-height: 1;
+  }
+  .subhead em { color: var(--red); font-style: italic; }
+  .subhead .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Main grid */
+  .sheet {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    min-height: calc(100vh - 260px);
+  }
+  .col { padding: 24px 28px; }
+  .col-l { border-right: 1px solid var(--rule); }
+  .col-r { border-left: 1px solid var(--rule); }
+
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed rgba(26,26,23,0.3);
+    padding-bottom: 6px;
+  }
+  .section-label .num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 14px;
+    font-style: italic;
+    color: var(--ink);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* Input form */
+  .field { margin-bottom: 20px; }
+  .field-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin-bottom: 6px;
+  }
+  .field-label .req {
+    color: var(--red);
+    margin-left: 4px;
+  }
+  .bare-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--ink);
+    padding: 8px 0 6px;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    outline: none;
+  }
+  .bare-input::placeholder { color: rgba(14,14,12,0.3); }
+  .bare-input:focus { border-bottom-color: var(--red); }
+
+  .upload {
+    border: 1.5px dashed var(--ink);
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      rgba(14,14,12,0.04) 6px 7px
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .upload:hover { border-color: var(--red); }
+  .upload .ul-inner {
+    text-align: center;
+    padding: 14px;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    line-height: 1.8;
+  }
+  .upload .ul-inner .plus {
+    font-family: 'Instrument Serif', serif;
+    font-size: 46px;
+    line-height: 1;
+    font-style: italic;
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  .upload img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    filter: grayscale(1) contrast(1.1);
+    mix-blend-mode: multiply;
+  }
+  .upload .stamp-overlay {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    border: 1.2px solid var(--red);
+    color: var(--red);
+    padding: 2px 6px;
+    background: rgba(236,231,221,0.85);
+    text-transform: uppercase;
+    transform: rotate(4deg);
+  }
+
+  /* Center column: specimen viewer */
+  .specimen {
+    position: relative;
+    background: var(--paper-2);
+    border: 1.5px solid var(--ink);
+    aspect-ratio: 1 / 1;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .specimen .frame-corner {
+    position: absolute;
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--ink);
+  }
+  .specimen .fc-tl { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+  .specimen .fc-tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+  .specimen .fc-bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+  .specimen .fc-br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+  .specimen .ruler-h,
+  .specimen .ruler-v {
+    position: absolute;
+    background-image:
+      repeating-linear-gradient(to right, var(--ink) 0 1px, transparent 1px 20px);
+    opacity: 0.25;
+  }
+  .specimen .ruler-h { top: 28px; left: 28px; right: 28px; height: 1px; }
+  .specimen .ruler-v {
+    top: 28px; left: 28px; bottom: 28px; width: 1px;
+    background-image: repeating-linear-gradient(to bottom, var(--ink) 0 1px, transparent 1px 20px);
+  }
+  .specimen-empty {
+    position: absolute; inset: 28px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    text-align: center;
+  }
+  .specimen-empty .big {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 54px;
+    line-height: 0.95;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .specimen-empty .small {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 320px;
+  }
+  .specimen-empty .decor {
+    width: 70px; height: 1px; background: var(--ink); opacity: 0.4;
+  }
+  .specimen-img {
+    position: absolute; inset: 28px;
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(1) contrast(1.05);
+    mix-blend-mode: multiply;
+  }
+  .specimen-url {
+    position: absolute; inset: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .specimen-url .u {
+    font-family: 'Instrument Serif', serif;
+    font-size: 34px;
+    line-height: 1;
+    text-wrap: balance;
+    word-break: break-word;
+    max-width: 100%;
+  }
+  .specimen-url .u-label {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Crosshairs + overlays during scanning */
+  .crosshair {
+    position: absolute; inset: 28px;
+    pointer-events: none;
+  }
+  .crosshair::before,
+  .crosshair::after {
+    content: "";
+    position: absolute;
+    background: var(--red);
+    opacity: 0.85;
+  }
+  .crosshair::before {
+    top: 50%; left: 0; right: 0; height: 1px;
+  }
+  .crosshair::after {
+    left: 50%; top: 0; bottom: 0; width: 1px;
+  }
+  .bracket-ui {
+    position: absolute; inset: 28px;
+    pointer-events: none;
+  }
+  .bracket-ui .brk {
+    position: absolute;
+    width: 40px; height: 40px;
+    border: 1.5px solid var(--red);
+  }
+  .bracket-ui .brk.tl { top: 20%; left: 18%; border-right: none; border-bottom: none; }
+  .bracket-ui .brk.tr { top: 20%; right: 18%; border-left: none; border-bottom: none; }
+  .bracket-ui .brk.bl { bottom: 20%; left: 18%; border-right: none; border-top: none; }
+  .bracket-ui .brk.br { bottom: 20%; right: 18%; border-left: none; border-top: none; }
+
+  .scan-bar {
+    position: absolute; left: 28px; right: 28px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+    box-shadow: 0 0 0 1px rgba(200,38,29,0.2), 0 0 22px rgba(200,38,29,0.4);
+    animation: scan 2.6s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0% { top: 28px; }
+    50% { top: calc(100% - 30px); }
+    100% { top: 28px; }
+  }
+
+  .callout {
+    position: absolute;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--red);
+    background: rgba(236,231,221,0.9);
+    padding: 2px 6px;
+    border: 1px solid var(--red);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .callout.tl { top: 38px; left: 38px; }
+  .callout.tr { top: 38px; right: 38px; }
+  .callout.bl { bottom: 38px; left: 38px; }
+  .callout.br { bottom: 38px; right: 38px; }
+
+  /* Right column: ledger */
+  .ledger-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(26,26,23,0.25);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .ledger-row .idx {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    color: var(--muted);
+    letter-spacing: 0;
+    font-size: 13px;
+    text-transform: none;
+  }
+  .ledger-row .score {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 16px;
+    letter-spacing: -0.02em;
+  }
+  .ledger-row.pending .score {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    color: var(--muted);
+  }
+  .ledger-row .label-wrap .sub {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Run button */
+  .run-btn {
+    width: 100%;
+    margin-top: 12px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 16px;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, transform 0.08s;
+    text-align: left;
+    padding-left: 20px;
+  }
+  .run-btn .arr {
+    position: absolute;
+    right: 16px; top: 50%; transform: translateY(-50%);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 22px;
+  }
+  .run-btn:hover:not(:disabled) { background: var(--red); color: var(--paper); }
+  .run-btn:active:not(:disabled) { transform: translateY(1px); }
+  .run-btn:disabled {
+    background: transparent;
+    color: var(--muted);
+    border: 1.5px dashed var(--muted);
+    cursor: not-allowed;
+  }
+
+  /* ===== RESULTS ===== */
+  .verdict {
+    padding: 36px 28px 20px;
+    border-bottom: 2px solid var(--rule);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 32px;
+    align-items: center;
+    position: relative;
+  }
+  .verdict .big-score {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: clamp(140px, 22vw, 320px);
+    line-height: 0.82;
+    letter-spacing: -0.05em;
+    color: var(--ink);
+    position: relative;
+  }
+  .verdict .big-score .slash {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 0.25em;
+    color: var(--muted);
+    margin-left: 6px;
+    vertical-align: 0.95em;
+    font-weight: 400;
+  }
+  .verdict .diag {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.05;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .verdict .diag em { color: var(--red); }
+  .verdict .diag-meta {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .verdict .diag-meta b { color: var(--ink); font-weight: 500; }
+
+  .stamp {
+    position: absolute;
+    top: 24px; right: 28px;
+    transform: rotate(-8deg);
+    border: 2.5px solid var(--red);
+    padding: 8px 14px;
+    color: var(--red);
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    background: rgba(236,231,221,0.4);
+    box-shadow: inset 0 0 0 1px rgba(200,38,29,0.2);
+    opacity: 0.9;
+  }
+  .stamp.green { border-color: var(--green); color: var(--green); }
+  .stamp.amber { border-color: var(--amber); color: var(--amber); }
+  .stamp .tiny {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+
+  /* Dimension breakdowns */
+  .dim-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    border-bottom: 2px solid var(--rule);
+  }
+  .dim-grid .cell {
+    padding: 22px 28px 26px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .dim-grid .cell:nth-child(2n) { border-right: none; }
+  .dim-grid .cell:nth-last-child(-n+2) { border-bottom: none; }
+
+  .cell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .cell-head .label {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .cell-head .label .sub {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .cell-head .sc {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 48px;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+  }
+
+  .verdict-quote {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+    margin: 12px 0 14px;
+    border-left: 2px solid var(--ink);
+    padding-left: 12px;
+    text-wrap: balance;
+  }
+  .flag-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 14px;
+  }
+  .flag {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink);
+    padding: 3px 8px;
+    background: transparent;
+  }
+  .rx {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+    color: var(--ink);
+    background: rgba(14,14,12,0.04);
+    padding: 10px 12px;
+    border-left: 3px solid var(--red);
+  }
+  .rx .rx-label {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--red);
+    white-space: nowrap;
+    padding-top: 1px;
+  }
+
+  .score-bar {
+    height: 4px;
+    background: rgba(14,14,12,0.12);
+    margin: 6px 0 14px;
+    position: relative;
+  }
+  .score-bar .fill {
+    height: 100%;
+    background: var(--ink);
+    transition: width 1.2s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  /* Prescription footer */
+  .rx-sheet {
+    padding: 32px 28px 48px;
+  }
+  .rx-sheet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  .rx-sheet-head h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1;
+  }
+  .rx-sheet-head h3 em {
+    font-style: normal;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 0.7em;
+    letter-spacing: 0.02em;
+    margin-left: 6px;
+  }
+  .rx-sheet-head .meta {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .rx-item {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(26,26,23,0.2);
+    align-items: baseline;
+  }
+  .rx-item .n {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 28px;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+  .rx-item .body .t {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .rx-item .body .a {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .rx-item .dose {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--red);
+    border: 1px solid var(--red);
+    padding: 3px 7px;
+  }
+
+  /* Footer */
+  .footer {
+    border-top: 2px solid var(--rule);
+    padding: 16px 28px 22px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer .sig {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+  }
+
+  /* Restart button */
+  .restart {
+    margin: 0 28px 40px;
+    padding: 18px 22px;
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px dashed var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    width: calc(100% - 56px);
+    text-align: left;
+    position: relative;
+    transition: background 0.15s, color 0.15s;
+  }
+  .restart:hover { background: var(--ink); color: var(--paper); }
+  .restart .arr {
+    position: absolute; right: 22px;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 18px;
+  }
+
+  /* Scanning status strip */
+  .status-strip {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 20px;
+    align-items: center;
+    padding: 12px 28px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+  }
+  .status-strip .pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-strip .pulse span {
+    width: 8px; height: 8px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: blink 1s infinite;
+  }
+  .status-strip .progress {
+    height: 2px;
+    background: rgba(236,231,221,0.15);
+    position: relative;
+  }
+  .status-strip .progress .fill {
+    position: absolute; inset: 0;
+    background: var(--red);
+    transition: width 0.5s ease;
+  }
+
+  /* Small utilities */
+  .hline { height: 1px; background: rgba(26,26,23,0.25); margin: 14px 0; }
+
+  @media (max-width: 960px) {
+    .sheet { grid-template-columns: 1fr; }
+    .col-l, .col-r { border: none; border-bottom: 1px solid var(--rule); }
+    .dim-grid { grid-template-columns: 1fr; }
+    .dim-grid .cell { border-right: none !important; }
+    .verdict { grid-template-columns: 1fr; }
+    .masthead { grid-template-columns: 1fr; text-align: center; }
+    .masthead .left, .masthead .right { text-align: center; }
+    .wordmark { font-size: 24vw; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useMemo } = React;
+
+/* ---------- DATA ---------- */
+const DIMENSIONS = [
+  { key: "typography",     label: "TYPOGRAPHY",     sub: "GENERIC VS. CUSTOM" },
+  { key: "color",          label: "COLOR SYSTEM",   sub: "DEFAULT VS. INTENTIONAL" },
+  { key: "consistency",    label: "VISUAL SYSTEM",  sub: "CHAOS VS. COHESION" },
+  { key: "aiDetection",    label: "AI DETECTION",   sub: "MACHINE VS. HUMAN" },
+  { key: "differentiation",label: "DIFFERENTIATION",sub: "INVISIBLE VS. MEMORABLE" },
+  { key: "assets",         label: "ASSET QUALITY",  sub: "STOCK VS. ORIGINAL" },
+];
+
+const PROMPTS = {
+  typography: `You are a brutal typography forensics expert. Analyze typography quality. Evaluate: Is the font generic (Inter, Roboto, Arial, system fonts)? Is there a type scale? Pairing quality? Custom vs default? Return ONLY valid JSON, no markdown: {"score":0-100,"flags":["issue1","issue2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=completely generic defaults, 100=distinctive custom typography system.`,
+  color: `You are a color system auditor for brand identity. Evaluate: Default palette? Custom brand color? Intentional or accidental? Return ONLY valid JSON: {"score":0-100,"flags":["issue1","issue2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=pure default palette, 100=distinctive intentional color system.`,
+  consistency: `You are a visual system auditor. Evaluate consistency: spacing, components, visual language. System or chaos? Return ONLY valid JSON: {"score":0-100,"flags":["issue1","issue2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=no system, 100=tight cohesive design system.`,
+  aiDetection: `You are an AI-generated design detector. Look for: mesh gradients, glassmorphism, shadcn defaults, Lucide icons unmodified, generic hero sections, purple gradient backgrounds, beige "premium" defaults, Inter everywhere. Return ONLY valid JSON: {"score":0-100,"flags":["signal1","signal2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=completely AI-generated, 100=clearly human-designed.`,
+  differentiation: `You are a brand differentiation analyst. Could this be any competitor? Recognizable POV? Memorable? Return ONLY valid JSON: {"score":0-100,"flags":["issue1","issue2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=interchangeable, 100=unmistakable.`,
+  assets: `You are a visual asset quality auditor. Stock photos? Default icons? Original illustration? Return ONLY valid JSON: {"score":0-100,"flags":["issue1","issue2"],"verdict":"1 brutal sentence max 12 words","improvement":"1 concrete action max 12 words"}. score 0=pure stock + default icons, 100=original custom assets.`,
+};
+
+/* ---------- HELPERS ---------- */
+function scoreStampKind(s) {
+  if (s == null) return "pending";
+  if (s >= 70) return "green";
+  if (s >= 45) return "amber";
+  return "red";
+}
+function scoreColor(s) {
+  const k = scoreStampKind(s);
+  if (k === "green") return "var(--green)";
+  if (k === "amber") return "var(--amber)";
+  if (k === "red") return "var(--red)";
+  return "var(--muted)";
+}
+function diagnosisText(s) {
+  if (s >= 80) return "Genuine design intent throughout.";
+  if (s >= 65) return "Considered, but inconsistently executed.";
+  if (s >= 45) return "A few real decisions buried under defaults.";
+  if (s >= 25) return "Running on factory settings.";
+  return "Critically undesigned. Ship-at-your-own-risk.";
+}
+function stampText(s) {
+  if (s >= 70) return "PASS";
+  if (s >= 45) return "NEEDS WORK";
+  return "UNDESIGNED";
+}
+
+async function runDimension(dimKey, url, imageBase64) {
+  const parts = [];
+  if (url) parts.push({ type: "text", text: "Brand URL: " + url });
+  if (imageBase64) {
+    parts.push({ type: "image", source: { type: "base64", media_type: "image/png", data: imageBase64 } });
+    parts.push({ type: "text", text: "Analyze this brand visual for the dimension requested." });
+  }
+  if (!url && !imageBase64) {
+    parts.push({ type: "text", text: "No brand data. Return a score of 0 with flags describing lack of evidence." });
+  }
+  try {
+    const raw = await window.claude.complete({
+      messages: [{ role: "user", content: parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts }],
+      system: PROMPTS[dimKey],
+    });
+    const txt = (raw || "").replace(/```json|```/g, "").trim();
+    // pull first JSON object if wrapped
+    const m = txt.match(/\{[\s\S]*\}/);
+    return JSON.parse(m ? m[0] : txt);
+  } catch (e) {
+    console.warn("dim failed", dimKey, e);
+    // Demo-safe fallback so the UI is still meaningful
+    const seed = (url + dimKey).length;
+    const score = (seed * 17) % 101;
+    return {
+      score,
+      flags: ["OFFLINE FALLBACK", "SIMULATED"],
+      verdict: "Running in offline mode with sample data.",
+      improvement: "Connect analyzer and retry for real diagnosis.",
+    };
+  }
+}
+
+/* ---------- SUB-COMPONENTS ---------- */
+function CountUp({ target, duration = 1400 }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (target == null) return;
+    let raf, start = null;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      setVal(Math.floor(p * target));
+      if (p < 1) raf = requestAnimationFrame(step);
+      else setVal(target);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return <>{val}</>;
+}
+
+function Typewriter({ text, speed = 22, start = true }) {
+  const [shown, setShown] = useState("");
+  useEffect(() => {
+    if (!start) { setShown(""); return; }
+    let i = 0, id;
+    const tick = () => {
+      i++;
+      setShown(text.slice(0, i));
+      if (i < text.length) id = setTimeout(tick, speed);
+    };
+    tick();
+    return () => clearTimeout(id);
+  }, [text, start, speed]);
+  return <>{shown}</>;
+}
+
+function SpecimenViewer({ image, url, scanning, currentDim }) {
+  const hasImage = !!image;
+  const hasUrl = !!(url && url.trim());
+  return (
+    <div className="specimen">
+      <div className="frame-corner fc-tl" />
+      <div className="frame-corner fc-tr" />
+      <div className="frame-corner fc-bl" />
+      <div className="frame-corner fc-br" />
+      <div className="ruler-h" />
+      <div className="ruler-v" />
+
+      {!hasImage && !hasUrl && (
+        <div className="specimen-empty">
+          <div className="decor" />
+          <div className="big"><em style={{fontStyle:'italic', color:'var(--red)'}}>No</em> specimen<br/>submitted.</div>
+          <div className="small">
+            Drop a URL or upload a screenshot.<br/>
+            Diagnosis runs six independent assays.
+          </div>
+          <div className="decor" />
+        </div>
+      )}
+
+      {hasImage && (
+        <div className="specimen-img" style={{ backgroundImage: `url(${image})` }} />
+      )}
+
+      {!hasImage && hasUrl && (
+        <div className="specimen-url">
+          <div className="u-label">Subject URL</div>
+          <div className="u">{url}</div>
+          <div className="u-label">— awaiting intake —</div>
+        </div>
+      )}
+
+      {scanning && (
+        <>
+          <div className="crosshair" />
+          <div className="bracket-ui">
+            <div className="brk tl" />
+            <div className="brk tr" />
+            <div className="brk bl" />
+            <div className="brk br" />
+          </div>
+          <div className="scan-bar" />
+          <div className="callout tl">ASSAY // {currentDim || "INIT"}</div>
+          <div className="callout tr">Δ 0.00{Math.floor(Math.random()*90)+10}</div>
+          <div className="callout bl">SPEC. ID {Math.floor(Math.random()*9000+1000)}</div>
+          <div className="callout br">RUN · LIVE</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function LedgerRow({ dim, idx, result, active }) {
+  const done = result && typeof result.score === "number";
+  const pending = !done && !active;
+  return (
+    <div className={"ledger-row" + (pending ? " pending" : "")}>
+      <div className="idx">{String(idx + 1).padStart(2, "0")}</div>
+      <div className="label-wrap">
+        <div>{dim.label}</div>
+        <div className="sub">{active && !done ? "// analyzing" : done ? dim.sub : "// queued"}</div>
+      </div>
+      <div className="score" style={{ color: done ? scoreColor(result.score) : undefined }}>
+        {done ? result.score : (active ? "—" : "··")}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- MAIN APP ---------- */
+function App() {
+  const [url, setUrl] = useState("");
+  const [image, setImage] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
+  const [phase, setPhase] = useState("idle"); // idle | scanning | done
+  const [results, setResults] = useState({});
+  const [currentDim, setCurrentDim] = useState("");
+  const fileRef = useRef();
+
+  const handleImage = (file) => {
+    if (!file) return;
+    setImage(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => setImageBase64(e.target.result.split(",")[1]);
+    reader.readAsDataURL(file);
+  };
+
+  const canRun = (url.trim().length > 3 || !!imageBase64) && phase === "idle";
+
+  const bareScore = useMemo(() => {
+    const vals = Object.values(results).map(r => r?.score).filter(v => typeof v === "number");
+    if (vals.length !== DIMENSIONS.length) return null;
+    return Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
+  }, [results]);
+
+  const runAnalysis = async () => {
+    if (!url && !imageBase64) return;
+    setPhase("scanning");
+    setResults({});
+    setCurrentDim(DIMENSIONS[0].label);
+
+    const next = {};
+    for (const dim of DIMENSIONS) {
+      setCurrentDim(dim.label);
+      const r = await runDimension(dim.key, url, imageBase64);
+      next[dim.key] = r;
+      setResults({ ...next });
+      await new Promise(r => setTimeout(r, 180));
+    }
+    setCurrentDim("");
+    setPhase("done");
+  };
+
+  const reset = () => {
+    setPhase("idle");
+    setUrl("");
+    setImage(null);
+    setImageBase64(null);
+    setResults({});
+    setCurrentDim("");
+  };
+
+  const completedCount = Object.keys(results).length;
+  const progressPct = Math.round((completedCount / DIMENSIONS.length) * 100);
+
+  // Live stamp for the in-flight verdict
+  const liveStamp = bareScore != null ? stampText(bareScore) : null;
+  const liveStampKind = bareScore != null ? scoreStampKind(bareScore) : null;
+
+  const dateStr = useMemo(() => {
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }, [phase]);
+
+  const specimenId = useMemo(() => "SPC-" + Math.floor(Math.random()*90000+10000), []);
+
+  return (
+    <div className="app">
+      {/* TOP RAIL */}
+      <div className="rail">
+        <div><span className="dot"/>DIAGNOSTIC LIVE · FILE #{specimenId}</div>
+        <div>BRAND AESTHETIC REALITY ENGINE · V1.0</div>
+        <div>{dateStr}</div>
+      </div>
+
+      {/* MASTHEAD */}
+      <div className="masthead">
+        <div className="left">
+          Bureau of<br/>
+          Aesthetic<br/>
+          Reality
+        </div>
+        <div className="wordmark">
+          BARE
+          <span className="over">Dx / Specimen Report</span>
+        </div>
+        <div className="right">
+          Report No.<br/>
+          {specimenId}<br/>
+          Issued — {dateStr.split(" · ")[0]}
+        </div>
+      </div>
+
+      <div className="subhead">
+        <div>A <em>forensic</em> audit of brand aesthetics. <em>Six</em> assays, one merciless score.</div>
+        <div className="meta">Status / {phase.toUpperCase()}</div>
+      </div>
+
+      {/* PHASE: IDLE or SCANNING — sheet layout */}
+      {phase !== "done" && (
+        <>
+          {phase === "scanning" && (
+            <div className="status-strip">
+              <div className="pulse"><span/>ANALYZING — {currentDim || "BOOTING"}</div>
+              <div className="progress"><div className="fill" style={{ width: progressPct + "%" }}/></div>
+              <div>{completedCount}/{DIMENSIONS.length} ASSAYS COMPLETE</div>
+            </div>
+          )}
+
+          <div className="sheet">
+            {/* LEFT: INTAKE FORM */}
+            <div className="col col-l">
+              <div className="section-label">
+                <span>§ 01 · Intake</span>
+                <span className="num">i.</span>
+              </div>
+
+              <div className="field">
+                <div className="field-label">Subject URL<span className="req">*</span></div>
+                <input
+                  className="bare-input"
+                  placeholder="https://yourbrand.com"
+                  value={url}
+                  disabled={phase !== "idle"}
+                  onChange={e => setUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <div className="field-label">Visual Specimen</div>
+                <div
+                  className="upload"
+                  onClick={() => phase === "idle" && fileRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); if (phase==="idle") handleImage(e.dataTransfer.files[0]); }}
+                >
+                  {image ? (
+                    <>
+                      <img src={image} alt="specimen" />
+                      <div className="stamp-overlay">RECEIVED</div>
+                    </>
+                  ) : (
+                    <div className="ul-inner">
+                      <span className="plus">+</span>
+                      Drop screenshot<br/>or click to upload
+                    </div>
+                  )}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => handleImage(e.target.files[0])}
+                  />
+                </div>
+              </div>
+
+              <div className="section-label" style={{ marginTop: 28 }}>
+                <span>§ 02 · Consent</span>
+                <span className="num">ii.</span>
+              </div>
+
+              <div style={{ fontSize: 10, lineHeight: 1.7, color: "var(--ink-2)", letterSpacing: "0.04em" }}>
+                I acknowledge that the diagnosis below is blunt, opinionated, and non-refundable. Findings may include: <em style={{color:'var(--red)', fontStyle:'italic', fontFamily:"'Instrument Serif',serif"}}>default palettes</em>, unmodified icon sets, and traces of <em style={{fontStyle:'italic', fontFamily:"'Instrument Serif',serif"}}>AI-slop.</em>
+              </div>
+
+              <button
+                className="run-btn"
+                disabled={!canRun}
+                onClick={runAnalysis}
+              >
+                {phase === "scanning" ? "RUNNING…" : "BEGIN DIAGNOSIS"}
+                <span className="arr">→</span>
+              </button>
+            </div>
+
+            {/* CENTER: SPECIMEN VIEWER */}
+            <div className="col">
+              <div className="section-label">
+                <span>§ 03 · Specimen under glass</span>
+                <span className="num">iii.</span>
+              </div>
+              <SpecimenViewer
+                image={image}
+                url={url}
+                scanning={phase === "scanning"}
+                currentDim={currentDim}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)" }}>
+                <span>— Specimen ID {specimenId} —</span>
+                <span>— {phase === "scanning" ? "LIVE SCAN" : "IDLE"} —</span>
+              </div>
+
+              {/* During scan, show a quote block */}
+              {phase === "scanning" && (
+                <div style={{ marginTop: 22, borderTop: "1px solid var(--rule)", paddingTop: 16 }}>
+                  <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 22, lineHeight: 1.25, color: "var(--ink)", textWrap: "balance" }}>
+                    <Typewriter
+                      key={currentDim}
+                      text={`Examining ${currentDim.toLowerCase()}… looking for traces of default thinking, unearned choices, and the ghost of Inter.`}
+                      speed={18}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT: LEDGER */}
+            <div className="col col-r">
+              <div className="section-label">
+                <span>§ 04 · Assay ledger</span>
+                <span className="num">iv.</span>
+              </div>
+              {DIMENSIONS.map((d, i) => (
+                <LedgerRow
+                  key={d.key}
+                  idx={i}
+                  dim={d}
+                  result={results[d.key]}
+                  active={phase === "scanning" && currentDim === d.label}
+                />
+              ))}
+
+              <div className="section-label" style={{ marginTop: 28 }}>
+                <span>§ 05 · What we're looking for</span>
+                <span className="num">v.</span>
+              </div>
+              <div style={{ fontSize: 10, lineHeight: 1.8, color: "var(--ink-2)", letterSpacing: "0.04em" }}>
+                Generic fonts · default palettes · mesh gradients · unmodified Lucide · shadcn card farms · purple hero blur · stock photography · cargo-cult neumorphism.
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PHASE: DONE */}
+      {phase === "done" && bareScore != null && (
+        <>
+          <div className="verdict">
+            <div className="big-score" style={{ color: scoreColor(bareScore) }}>
+              <CountUp target={bareScore} duration={1600} />
+              <span className="slash">/100</span>
+            </div>
+            <div>
+              <div className="diag">
+                Diagnosis: <em>{diagnosisText(bareScore)}</em>
+              </div>
+              <div className="diag-meta">
+                <span>File <b>#{specimenId}</b></span>
+                <span>Issued <b>{dateStr}</b></span>
+                <span>Subject <b>{url ? url.replace(/^https?:\/\//,'').slice(0, 28) : "image specimen"}</b></span>
+                <span>Assays <b>{DIMENSIONS.length}/{DIMENSIONS.length}</b></span>
+              </div>
+            </div>
+            <div className={"stamp " + liveStampKind}>
+              {liveStamp}
+              <span className="tiny">BARE · Dx · {dateStr.split(" · ")[0]}</span>
+            </div>
+          </div>
+
+          {/* DIMENSION GRID */}
+          <div className="dim-grid">
+            {DIMENSIONS.map((d, i) => {
+              const r = results[d.key];
+              if (!r) return null;
+              return (
+                <div className="cell" key={d.key}>
+                  <div className="cell-head">
+                    <div className="label">
+                      0{i+1} · {d.label}
+                      <span className="sub">{d.sub}</span>
+                    </div>
+                    <div className="sc" style={{ color: scoreColor(r.score) }}>
+                      {r.score}
+                    </div>
+                  </div>
+                  <div className="score-bar">
+                    <div className="fill" style={{ width: r.score + "%", background: scoreColor(r.score) }} />
+                  </div>
+                  {r.verdict && (
+                    <div className="verdict-quote">"{r.verdict.replace(/^["']|["']$/g,'')}"</div>
+                  )}
+                  {r.flags && r.flags.length > 0 && (
+                    <div className="flag-row">
+                      {r.flags.map((f,k) => <span className="flag" key={k}>{f}</span>)}
+                    </div>
+                  )}
+                  {r.improvement && (
+                    <div className="rx">
+                      <div className="rx-label">Rx →</div>
+                      <div>{r.improvement}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* PRESCRIPTION SHEET */}
+          <div className="rx-sheet">
+            <div className="rx-sheet-head">
+              <h3>Prescription <em>Rx</em></h3>
+              <div className="meta">Priority by severity · {DIMENSIONS.length} items</div>
+            </div>
+
+            {DIMENSIONS
+              .map((d, i) => ({ d, i, r: results[d.key] }))
+              .filter(x => x.r?.improvement)
+              .sort((a,b) => (a.r.score ?? 0) - (b.r.score ?? 0))
+              .map(({d, i, r}, k) => (
+                <div className="rx-item" key={d.key}>
+                  <div className="n" style={{ color: scoreColor(r.score) }}>0{k+1}</div>
+                  <div className="body">
+                    <div className="t">{d.label} · Score {r.score}</div>
+                    <div className="a">{r.improvement}</div>
+                  </div>
+                  <div className="dose" style={{ color: scoreColor(r.score), borderColor: scoreColor(r.score) }}>
+                    {r.score < 45 ? "URGENT" : r.score < 70 ? "ADVISED" : "MAINTAIN"}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+
+          <button className="restart" onClick={reset}>
+            File a new specimen
+            <span className="arr">↺</span>
+          </button>
+        </>
+      )}
+
+      {/* FOOTER */}
+      <div className="footer">
+        <div>BARE · Brand Aesthetic Reality Engine</div>
+        <div className="sig">— by Bananalab, with love &amp; contempt</div>
+        <div>v2.0 · {dateStr.split(" · ")[0]}</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
