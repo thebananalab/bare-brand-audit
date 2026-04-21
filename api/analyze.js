@@ -13,8 +13,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });
   }
 
-  if (recaptchaSecret) {
-    if (!recaptchaToken) return res.status(403).json({ error: 'reCAPTCHA token missing' });
+  if (recaptchaSecret && recaptchaToken) {
     const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

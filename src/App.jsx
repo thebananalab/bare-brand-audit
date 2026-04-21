@@ -135,10 +135,13 @@ export default function App() {
     setOpenDim(DIMENSIONS[0].key);
 
     const next = {};
+    let tokenUsed = false;
     for (const dim of DIMENSIONS) {
       setCurrentDim(dim.label);
       setOpenDim(dim.key);
-      const r = await runDim(dim.key, url, imageBase64, imageMime, null, recaptchaToken);
+      const token = tokenUsed ? null : recaptchaToken;
+      tokenUsed = true;
+      const r = await runDim(dim.key, url, imageBase64, imageMime, null, token);
       next[dim.key] = r;
       setResults({ ...next });
       await new Promise(resolve => setTimeout(resolve, 180));
