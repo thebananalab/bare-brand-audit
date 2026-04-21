@@ -23,3 +23,13 @@ export async function saveReport(data) {
     return false
   }
 }
+
+export async function saveLead(data) {
+  try {
+    await addDoc(collection(db, 'leads'), { ...data, createdAt: new Date().toISOString() })
+    return true
+  } catch (e) {
+    console.warn('Firebase lead save failed:', e.message)
+    return false
+  }
+}

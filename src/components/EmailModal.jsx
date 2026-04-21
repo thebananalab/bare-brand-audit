@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveReport } from '../firebase'
+import { saveLead } from '../firebase'
 import { DIMENSIONS } from '../constants'
 
 export default function EmailModal({ score, url, results, specimenId, dateStr, onClose }) {
@@ -22,7 +22,7 @@ export default function EmailModal({ score, url, results, specimenId, dateStr, o
       console.warn("Resend error:", e.message);
     }
 
-    await saveReport({ email, score, url: url || "image", results, specimenId, dateStr });
+    await saveLead({ email, score, url: url || "image", specimenId, dateStr });
     setStatus("done");
   };
 
