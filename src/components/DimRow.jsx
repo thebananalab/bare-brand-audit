@@ -16,8 +16,9 @@ export default function DimRow({ idx, dim, result, active, isOpen, onToggle }) {
             {result.score}
           </div>
         ) : (
-          <div className="ic">{active ? "◐" : "+"}</div>
+          <div className="ic">{active ? "◐" : ""}</div>
         )}
+        <div className="chevron">▾</div>
       </div>
       {isOpen && done && (
         <div className="dim-body">
