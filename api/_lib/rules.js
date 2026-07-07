@@ -148,7 +148,7 @@ function scoreAiDetection(f, otherNegativeCount) {
   if (otherNegativeCount >= 2) {
     hit(r, -10, `${otherNegativeCount} other dimensions already flag AI-typical defaults`, 'CROSS-SIGNAL');
   }
-  if (!builderHit && !iconHit && f.gradientSignals.backdropBlurCount === 0 && !f.likelySpa) {
+  if (!builderHit && !iconHit && f.gradientSignals.backdropBlurCount === 0 && !f.likelySpa && otherNegativeCount < 2) {
     hit(r, 20, 'no site-builder, default icon set, or glassmorphism signals detected');
   }
   r.score = clamp(r.score);
@@ -166,7 +166,7 @@ function scoreDifferentiation(f) {
     hit(r, -15, `generic headline pattern in title: "${f.title.slice(0, 60)}"`, 'GENERIC HEADLINE');
   }
   if (hits.length === 0) {
-    hit(r, 15, 'no tracked buzzwords found in copy — weak signal, not proof of differentiation', 'LOW SIGNAL');
+    hit(r, 0, 'no tracked buzzwords found in copy — weak signal, not proof of differentiation', 'LOW SIGNAL');
   }
   r.score = clamp(r.score);
   return r;
