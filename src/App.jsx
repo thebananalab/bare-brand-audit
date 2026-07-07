@@ -96,13 +96,36 @@ export default function App() {
     window.grecaptcha.execute(recaptchaWidgetId.current);
   });
 
-  const handleImage = (file) => {
+  const MAX_IMAGE_DIMENSION = 1600;
+
+  const compressImage = (file) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+
+  const handleImage = async (file) => {
     if (!file) return;
     setImage(URL.createObjectURL(file));
-    setImageMime(file.type || "image/jpeg");
-    const reader = new FileReader();
-    reader.onload = (e) => setImageBase64(e.target.result.split(",")[1]);
-    reader.readAsDataURL(file);
+    try {
+      const dataUrl = await compressImage(file);
+      setImageMime("image/jpeg");
+      setImageBase64(dataUrl.split(",")[1]);
+    } catch {
+      setImageMime(file.type || "image/jpeg");
+      const reader = new FileReader();
+      reader.onload = (e) => setImageBase64(e.target.result.split(",")[1]);
+      reader.readAsDataURL(file);
+    }
   };
 
   const canRun = (url.trim().length > 3 || !!imageBase64) && phase === "idle";
@@ -154,7 +177,7 @@ export default function App() {
         return;
       }
       console.error("runAnalysis failed:", e);
-      setErrorMsg("Something broke mid-audit. Try again in a moment.");
+      setErrorMsg(e.message === "PAYLOAD_TOO_LARGE" ? "Image too large after compression — try a smaller screenshot." : "Something broke mid-audit. Try again in a moment.");
       setPhase("idle");
       return;
     }
