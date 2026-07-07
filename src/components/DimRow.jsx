@@ -29,6 +29,11 @@ export default function DimRow({ idx, dim, result, active, isOpen, onToggle }) {
               {result.flags.map((f, i) => <span className="flag" key={i}>{f}</span>)}
             </div>
           )}
+          {result.evidence && result.evidence.length > 0 && (
+            <div className="evidence">
+              {result.evidence.map((e, i) => <div className="ev-line" key={i}>· {e}</div>)}
+            </div>
+          )}
           {result.improvement && (
             <div className="rx">
               <span className="arr">RX →</span>

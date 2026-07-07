@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { DIMENSIONS } from './constants'
 import { getCacheKey, loadFromCache, saveToCache, diagText } from './utils'
-import { runDim } from './api'
+import { runAudit } from './api'
 import { saveReport } from './firebase'
 import CountUp from './components/CountUp'
 import DimRow from './components/DimRow'
@@ -136,16 +136,12 @@ export default function App() {
     setOpenDim(DIMENSIONS[0].key);
 
     const next = {};
-    let tokenUsed = false;
     try {
+      const results = await runAudit(url, imageBase64, imageMime, recaptchaToken);
       for (const dim of DIMENSIONS) {
         setCurrentDim(dim.label);
         setOpenDim(dim.key);
-        const token = tokenUsed ? null : recaptchaToken;
-        const isFirstDim = !tokenUsed;
-        tokenUsed = true;
-        const r = await runDim(dim.key, url, imageBase64, imageMime, null, token, isFirstDim);
-        next[dim.key] = r;
+        next[dim.key] = results[dim.key];
         setResults({ ...next });
         await new Promise(resolve => setTimeout(resolve, 180));
       }

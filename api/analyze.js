@@ -1,5 +1,10 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { crawlPage, findStylesheetLinks, fetchStylesheets } from './_lib/crawl.js';
+import { extractFeatures } from './_lib/extract.js';
+import { runAllRules } from './_lib/rules.js';
+import { fallbackCaptions } from './_lib/fallbackCopy.js';
+import { summarizeDimensions, visualOnlyAudit } from './_lib/summarize.js';
 
 let ratelimit;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -10,6 +15,21 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   });
 }
 
+const DIM_KEYS = ['typography', 'color', 'consistency', 'aiDetection', 'differentiation', 'assets'];
+
+function unreachableFallback(message) {
+  const out = {};
+  for (const key of DIM_KEYS) {
+    out[key] = {
+      score: 0,
+      flags: ['CLAUDE ERROR', (message || 'UNKNOWN').slice(0, 38).toUpperCase()],
+      verdict: 'Claude API error. Check server configuration.',
+      improvement: 'Verify ANTHROPIC_API_KEY in Vercel environment variables.',
+    };
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -17,18 +37,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { url, imageBase64, imageMime, prompt, recaptchaToken, isFirstDim } = req.body;
+  const { url, imageBase64, imageMime, recaptchaToken } = req.body;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (isFirstDim && ratelimit) {
+  if (ratelimit) {
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const { success } = await ratelimit.limit(ip);
     if (!success) return res.status(429).json({ error: 'Limit of 3 audits per day reached. Come back tomorrow.' });
-  }
-
-  if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set in Vercel environment variables' });
   }
 
   if (recaptchaSecret && recaptchaToken) {
@@ -41,85 +57,78 @@ export default async function handler(req, res) {
     if (!verifyData.success) return res.status(403).json({ error: 'reCAPTCHA failed' });
   }
 
-  const content = [];
-
-  if (url) {
-    try {
-      const cleanUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
-      const proxyRes = await fetch(
-        'https://api.allorigins.win/get?url=' + encodeURIComponent(cleanUrl),
-        { signal: AbortSignal.timeout(10000) }
-      );
-      const json = await proxyRes.json();
-      if (json.contents) {
-        const text = json.contents
-          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/&[a-z]+;/gi, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 7000);
-        content.push({ type: 'text', text: 'Brand website content from ' + url + ':\n\n' + text });
-      } else {
-        content.push({ type: 'text', text: 'Brand URL: ' + url + ' — could not fetch page. Analyze from domain/context only.' });
-      }
-    } catch {
-      content.push({ type: 'text', text: 'Brand URL: ' + url + ' — fetch failed. Analyze from domain/context only.' });
-    }
-  }
-
-  if (imageBase64) {
-    content.push({
-      type: 'image',
-      source: { type: 'base64', media_type: imageMime || 'image/jpeg', data: imageBase64 },
-    });
-    content.push({ type: 'text', text: url ? 'Also analyze this brand screenshot.' : 'Analyze this brand visual in full.' });
-  }
-
   if (!url && !imageBase64) {
-    content.push({ type: 'text', text: 'No brand data provided. Return score 0 with relevant flags.' });
-  }
-
-  try {
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        system: prompt,
-        messages: [{ role: 'user', content }],
-      }),
-    });
-
-    const data = await anthropicRes.json();
-
-    if (data.error) {
-      console.error('Anthropic API error:', JSON.stringify(data.error));
-      throw new Error(data.error.message);
-    }
-
-    const rawText = data.content?.[0]?.text || '';
-    console.log('Claude raw:', rawText.slice(0, 200));
-
-    const text = rawText.replace(/```json|```/g, '').trim();
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('No JSON in Claude response: ' + text.slice(0, 80));
-    const result = JSON.parse(m[0]);
-
-    return res.status(200).json(result);
-  } catch (e) {
-    console.error('analyze error:', e.message);
     return res.status(200).json({
-      score: 0,
-      flags: ['CLAUDE ERROR', (e.message || 'UNKNOWN').slice(0, 38).toUpperCase()],
-      verdict: 'Claude API error. Check server configuration.',
-      improvement: 'Verify ANTHROPIC_API_KEY in Vercel environment variables.',
+      results: unreachableFallback('NO BRAND DATA PROVIDED'),
+      meta: { fetchMethod: 'none', mode: 'none', llmUsed: false },
     });
   }
+
+  // Image-only mode: no HTML to run rules against, LLM originates the score.
+  if (!url && imageBase64) {
+    if (!apiKey) {
+      return res.status(200).json({
+        results: unreachableFallback('ANTHROPIC_API_KEY NOT SET'),
+        meta: { fetchMethod: 'none', mode: 'visual-only', llmUsed: false },
+      });
+    }
+    try {
+      const results = await visualOnlyAudit({ imageBase64, imageMime }, apiKey);
+      for (const key of DIM_KEYS) {
+        results[key].flags = [...(results[key].flags || []), 'VISUAL ESTIMATE — NO SOURCE URL'];
+      }
+      return res.status(200).json({ results, meta: { fetchMethod: 'none', mode: 'visual-only', llmUsed: true } });
+    } catch (e) {
+      console.error('visualOnlyAudit error:', e.message);
+      return res.status(200).json({
+        results: unreachableFallback(e.message),
+        meta: { fetchMethod: 'none', mode: 'visual-only', llmUsed: false },
+      });
+    }
+  }
+
+  // URL present: crawl + extract + deterministic rules, LLM only captions.
+  const crawl = await crawlPage(url);
+  if (!crawl.html) {
+    return res.status(200).json({
+      results: unreachableFallback('COULD NOT FETCH PAGE'),
+      meta: { fetchMethod: 'failed', mode: 'rules', llmUsed: false },
+    });
+  }
+
+  const stylesheetUrls = findStylesheetLinks(crawl.html, crawl.url);
+  const externalCss = stylesheetUrls.length ? await fetchStylesheets(stylesheetUrls) : '';
+
+  const features = extractFeatures(crawl.html, crawl.url, externalCss);
+  const ruleResults = runAllRules(features);
+
+  let captions;
+  let llmUsed = false;
+  if (apiKey) {
+    try {
+      captions = await summarizeDimensions(ruleResults, { url, imageBase64, imageMime }, apiKey);
+      llmUsed = true;
+    } catch (e) {
+      console.error('summarizeDimensions error:', e.message);
+      captions = fallbackCaptions(ruleResults);
+    }
+  } else {
+    captions = fallbackCaptions(ruleResults);
+  }
+
+  const results = {};
+  for (const key of DIM_KEYS) {
+    results[key] = {
+      score: ruleResults[key].score,
+      evidence: ruleResults[key].evidence,
+      flags: ruleResults[key].flags,
+      verdict: captions[key].verdict,
+      improvement: captions[key].improvement,
+    };
+  }
+
+  return res.status(200).json({
+    results,
+    meta: { fetchMethod: crawl.method, mode: 'rules', llmUsed, stylesheetsFetched: stylesheetUrls.length, likelySpa: features.likelySpa },
+  });
 }

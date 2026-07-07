@@ -26,7 +26,7 @@ export const CACHE_TTL = 24 * 60 * 60 * 1000;
 export function getCacheKey(url, b64) {
   const u = url ? btoa(encodeURIComponent(url)).slice(0, 20) : "";
   const i = b64 ? b64.slice(0, 16) : "";
-  return "bare_v2_" + u + "_" + i;
+  return "bare_v3_" + u + "_" + i;
 }
 
 export function loadFromCache(key) {
@@ -41,24 +41,4 @@ export function loadFromCache(key) {
 
 export function saveToCache(key, results) {
   try { localStorage.setItem(key, JSON.stringify({ results, ts: Date.now() })); } catch {}
-}
-
-export async function fetchUrlContent(rawUrl) {
-  const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : "https://" + rawUrl;
-  try {
-    const res = await fetch(
-      "https://api.allorigins.win/get?url=" + encodeURIComponent(url),
-      { signal: AbortSignal.timeout(10000) }
-    );
-    const json = await res.json();
-    if (!json.contents) return null;
-    return json.contents
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&[a-z]+;/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 7000);
-  } catch { return null; }
 }
