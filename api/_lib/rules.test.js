@@ -133,6 +133,23 @@ describe('SPA detection', () => {
   });
 });
 
+describe('single-incidental-hex regression (false positives from noisy bundled CSS)', () => {
+  it('does not flag purple gradient from a single unused hex buried in a large CSS bundle', () => {
+    const noise = Array.from({ length: 50 }, (_, i) => `.u${i}{color:#${(100000 + i).toString(16).padStart(6, '0')};}`).join('');
+    const html = `<html><head><style>${noise}.unused-token{color:#ac4bff;background:linear-gradient(90deg,#f0503d,#ff8370);}</style></head><body></body></html>`;
+    const features = extractFeatures(html, 'https://example.com');
+    const rules = runAllRules(features);
+    expect(rules.color.flags).not.toContain('PURPLE GRADIENT');
+  });
+
+  it('does flag purple gradient when 2+ distinct purple hexes actually form a gradient', () => {
+    const html = `<html><head><style>.hero{background:linear-gradient(135deg,#8b5cf6,#a78bfa);}</style></head><body></body></html>`;
+    const features = extractFeatures(html, 'https://example.com');
+    const rules = runAllRules(features);
+    expect(rules.color.flags).toContain('PURPLE GRADIENT');
+  });
+});
+
 describe('expanded rule catalog', () => {
   it('detects tier-3 "new premium default" fonts (Satoshi) with a lighter penalty than Inter', () => {
     const html = `<html><head><style>body{font-family:'Satoshi',sans-serif;}</style></head><body><h1>Hi</h1></body></html>`;
@@ -157,11 +174,18 @@ describe('expanded rule catalog', () => {
     expect(rules.aiDetection.evidence.join(' ')).toMatch(/Heroicons/);
   });
 
-  it('detects default Tailwind blue/indigo as a CTA color', () => {
-    const html = `<html><head><style>.btn{background:#2563eb;}</style></head><body></body></html>`;
+  it('detects default Tailwind blue/indigo as a CTA color when 2+ distinct default hexes present', () => {
+    const html = `<html><head><style>.btn{background:#2563eb;} .link{color:#6366f1;}</style></head><body></body></html>`;
     const features = extractFeatures(html, 'https://example.com');
     const rules = runAllRules(features);
     expect(rules.color.flags).toContain('DEFAULT CTA COLOR');
+  });
+
+  it('does not flag a single incidental CTA-colored hex as a real signal', () => {
+    const html = `<html><head><style>.btn{background:#2563eb;}</style></head><body></body></html>`;
+    const features = extractFeatures(html, 'https://example.com');
+    const rules = runAllRules(features);
+    expect(rules.color.flags).not.toContain('DEFAULT CTA COLOR');
   });
 
   it('detects Webflow-pattern classes even without a generator meta tag', () => {

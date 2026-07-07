@@ -21,7 +21,8 @@ export function extractFeatures(html, pageUrl, externalCss = '') {
   for (const m of allCss.matchAll(/font-family\s*:\s*([^;"}]+)/gi)) {
     m[1].split(',').forEach(f => {
       const clean = f.replace(/['"]/g, '').trim();
-      if (clean && !/^(inherit|initial|unset)$/i.test(clean)) fontFamilies.add(clean);
+      const isCssSyntaxLeftover = /[(){}]/.test(clean) || clean.startsWith('--');
+      if (clean && !isCssSyntaxLeftover && !/^(inherit|initial|unset)$/i.test(clean)) fontFamilies.add(clean);
     });
   }
   $('link[href*="fonts.googleapis.com"]').each((_, el) => {

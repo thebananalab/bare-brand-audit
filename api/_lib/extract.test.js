@@ -16,6 +16,16 @@ describe('extractFeatures', () => {
     expect(f.fontFamilies).toEqual(expect.arrayContaining(['Space Mono', 'Custom Grotesk', 'SelfHosted Sans']));
   });
 
+  it('does not leak CSS var() syntax into fontFamilies when a font stack falls back through a custom property', () => {
+    const html = `<html><head><style>body{font-family:var(--font-sans, 'General Sans', sans-serif);}</style></head><body></body></html>`;
+    const f = extractFeatures(html, 'https://example.com');
+    expect(f.fontFamilies).toContain('General Sans');
+    for (const font of f.fontFamilies) {
+      expect(font).not.toMatch(/[(){}]/);
+      expect(font.startsWith('--')).toBe(false);
+    }
+  });
+
   it('captures ordered heading structure and h1 count', () => {
     const html = `<html><body><h1>A</h1><h2>B</h2><h2>C</h2><h3>D</h3></body></html>`;
     const f = extractFeatures(html, 'https://example.com');
