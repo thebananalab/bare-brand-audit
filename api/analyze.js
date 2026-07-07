@@ -5,6 +5,7 @@ import { extractFeatures } from './_lib/extract.js';
 import { runAllRules } from './_lib/rules.js';
 import { fallbackCaptions } from './_lib/fallbackCopy.js';
 import { summarizeDimensions, visualOnlyAudit } from './_lib/summarize.js';
+import { cacheKeyForUrl, cacheKeyForImage, getCachedResult, setCachedResult } from './_lib/resultCache.js';
 
 let ratelimit;
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -73,6 +74,12 @@ export default async function handler(req, res) {
     });
   }
 
+  const cacheKey = url ? cacheKeyForUrl(url) : cacheKeyForImage(imageBase64);
+  const cached = await getCachedResult(cacheKey);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
   // Image-only mode: no HTML to run rules against, LLM originates the score.
   if (!url && imageBase64) {
     if (!apiKey) {
@@ -86,7 +93,9 @@ export default async function handler(req, res) {
       for (const key of DIM_KEYS) {
         results[key].flags = [...(results[key].flags || []), 'VISUAL ESTIMATE — NO SOURCE URL'];
       }
-      return res.status(200).json({ results, meta: { fetchMethod: 'none', mode: 'visual-only', llmUsed: true } });
+      const payload = { results, meta: { fetchMethod: 'none', mode: 'visual-only', llmUsed: true } };
+      await setCachedResult(cacheKey, payload);
+      return res.status(200).json(payload);
     } catch (e) {
       console.error('visualOnlyAudit error:', e.message);
       return res.status(200).json({
@@ -136,8 +145,10 @@ export default async function handler(req, res) {
     };
   }
 
-  return res.status(200).json({
+  const payload = {
     results,
     meta: { fetchMethod: crawl.method, mode: 'rules', llmUsed, stylesheetsFetched: stylesheetUrls.length, likelySpa: features.likelySpa },
-  });
+  };
+  await setCachedResult(cacheKey, payload);
+  return res.status(200).json(payload);
 }
