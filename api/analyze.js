@@ -42,19 +42,28 @@ export default async function handler(req, res) {
   const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (ratelimit) {
-    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-    const { success } = await ratelimit.limit(ip);
-    if (!success) return res.status(429).json({ error: 'Limit of 3 audits per day reached. Come back tomorrow.' });
+    try {
+      const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+      const { success } = await ratelimit.limit(ip);
+      if (!success) return res.status(429).json({ error: 'Limit of 3 audits per day reached. Come back tomorrow.' });
+    } catch (e) {
+      console.error('ratelimit check failed, failing open:', e.message);
+    }
   }
 
   if (recaptchaSecret && recaptchaToken) {
-    const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'secret=' + recaptchaSecret + '&response=' + recaptchaToken,
-    });
-    const verifyData = await verifyRes.json();
-    if (!verifyData.success) return res.status(403).json({ error: 'reCAPTCHA failed' });
+    try {
+      const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'secret=' + recaptchaSecret + '&response=' + recaptchaToken,
+        signal: AbortSignal.timeout(6000),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) return res.status(403).json({ error: 'reCAPTCHA failed' });
+    } catch (e) {
+      console.error('recaptcha verify failed, failing open:', e.message);
+    }
   }
 
   if (!url && !imageBase64) {

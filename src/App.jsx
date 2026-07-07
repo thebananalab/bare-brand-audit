@@ -18,6 +18,7 @@ export default function App() {
   const [openDim, setOpenDim] = useState("typography");
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const fileRef = useRef();
   const recaptchaWidgetId = useRef(null);
   const recaptchaResolveRef = useRef(null);
@@ -132,6 +133,7 @@ export default function App() {
 
     setPhase("scanning");
     setResults({});
+    setErrorMsg("");
     setCurrentDim(DIMENSIONS[0].label);
     setOpenDim(DIMENSIONS[0].key);
 
@@ -151,7 +153,10 @@ export default function App() {
         setPhase("idle");
         return;
       }
-      throw e;
+      console.error("runAnalysis failed:", e);
+      setErrorMsg("Something broke mid-audit. Try again in a moment.");
+      setPhase("idle");
+      return;
     }
     setCurrentDim("");
     setPhase("done");
@@ -306,10 +311,13 @@ export default function App() {
                 <div>3 audits per day. Come back tomorrow.</div>
               </div>
             ) : (
-              <button className="run-btn" disabled={!canRun} onClick={() => runAnalysis()} style={{ marginTop: 32 }}>
-                {phase === "scanning" ? "Analyzing…" : "Begin Diagnosis"}
-                <span className="arrow">→</span>
-              </button>
+              <>
+                <button className="run-btn" disabled={!canRun} onClick={() => runAnalysis()} style={{ marginTop: 32 }}>
+                  {phase === "scanning" ? "Analyzing…" : "Begin Diagnosis"}
+                  <span className="arrow">→</span>
+                </button>
+                {errorMsg && <div className="rate-limit-msg">{errorMsg}</div>}
+              </>
             )}
             <div id="recaptcha-bare" />
           </div>
