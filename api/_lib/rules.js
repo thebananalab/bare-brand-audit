@@ -1,15 +1,32 @@
-const AI_DEFAULT_FONTS = ['inter', 'plus jakarta sans', 'dm sans', 'geist', 'manrope', 'space grotesk'];
+const AI_DEFAULT_FONTS = [
+  { name: 'inter', delta: -25 },
+  { name: 'plus jakarta sans', delta: -20 },
+  { name: 'dm sans', delta: -20 },
+  { name: 'geist', delta: -20 },
+  { name: 'manrope', delta: -20 },
+  { name: 'space grotesk', delta: -20 },
+  { name: 'satoshi', delta: -15 },
+  { name: 'switzer', delta: -15 },
+  { name: 'general sans', delta: -15 },
+];
 const TAILWIND_GRAY_HEXES = new Set([
   '#f9fafb', '#f3f4f6', '#e5e7eb', '#d1d5db', '#9ca3af', '#6b7280', '#4b5563', '#374151', '#1f2937', '#111827',
   '#f1f5f9', '#e2e8f0', '#cbd5e1', '#64748b', '#334155', '#1e293b',
   '#f4f4f5', '#e4e4e7', '#a1a1aa', '#27272a',
   '#f5f5f5', '#e5e5e5', '#a3a3a3', '#262626',
 ]);
-const STOCK_DOMAINS = ['unsplash.com', 'pexels.com', 'pixabay.com', 'freepik.com', 'shutterstock.com', 'istockphoto.com', 'gettyimages.com'];
-const BUZZWORDS = ['seamless', 'revolutioniz', 'empower', 'cutting-edge', 'cutting edge', 'next-gen', 'next generation', 'game-chang', 'unlock', 'elevate', 'disrupt', 'unparalleled', 'ai-powered', 'reimagined'];
+const TAILWIND_DEFAULT_CTA_HEXES = new Set(['#3b82f6', '#2563eb', '#6366f1', '#4f46e5']);
+const STOCK_DOMAINS = ['unsplash.com', 'pexels.com', 'pixabay.com', 'freepik.com', 'shutterstock.com', 'istockphoto.com', 'gettyimages.com', 'envato.com', 'elements.envato.com', 'canva.com', 'stock.adobe.com', 'depositphotos.com', '123rf.com'];
+const BUZZWORDS = ['seamless', 'revolutioniz', 'empower', 'cutting-edge', 'cutting edge', 'next-gen', 'next generation', 'game-chang', 'unlock', 'elevate', 'disrupt', 'unparalleled', 'ai-powered', 'reimagined', 'transform the way', 'built different', 'blazingly fast', 'end-to-end'];
 const BUILDER_GENERATORS = ['framer', 'webflow', 'squarespace', 'wix'];
+const BUILDER_CLASS_RE = /\bw-(button|container|inline-block|nav-link|dropdown|form)\b/;
 const SHADCN_MARKERS = ['bg-background', 'text-foreground', 'border-border', 'bg-card', 'text-card-foreground', 'data-state='];
-const LUCIDE_MARKERS = ['lucide', 'data-lucide'];
+const ICON_LIBRARIES = [
+  { name: 'Lucide', patterns: ['lucide', 'data-lucide'] },
+  { name: 'Heroicons', patterns: ['heroicon'] },
+  { name: 'Phosphor', patterns: ['ph-bold', 'ph-fill', 'ph-duotone', 'phosphor-icon'] },
+  { name: 'Tabler Icons', patterns: ['tabler-icon', 'ti ti-'] },
+];
 
 function clamp(n) { return Math.max(0, Math.min(100, Math.round(n))); }
 
@@ -42,14 +59,14 @@ function hit(r, delta, evidence, flag) {
 function scoreTypography(f) {
   const r = makeResult(65);
   const lowerFonts = f.fontFamilies.map(x => x.toLowerCase());
-  const aiFont = lowerFonts.find(lf => AI_DEFAULT_FONTS.some(d => lf.includes(d)));
+  const aiFont = AI_DEFAULT_FONTS.find(d => lowerFonts.some(lf => lf.includes(d.name)));
   if (aiFont) {
-    hit(r, aiFont.includes('inter') ? -25 : -20, `font-family stack includes "${aiFont}" — default AI/startup typeface`, 'DEFAULT FONT');
+    hit(r, aiFont.delta, `font-family stack includes "${aiFont.name}" — default AI/startup typeface`, 'DEFAULT FONT');
   }
   if (f.fontFamilies.length === 0 && !f.likelySpa) {
     hit(r, -10, 'no custom font-family declared — system font stack only', 'NO CUSTOM TYPE');
   }
-  const customCount = f.fontFamilies.filter(ff => !AI_DEFAULT_FONTS.some(d => ff.toLowerCase().includes(d))).length;
+  const customCount = f.fontFamilies.filter(ff => !AI_DEFAULT_FONTS.some(d => ff.toLowerCase().includes(d.name))).length;
   if (customCount >= 2) {
     hit(r, 10, `${customCount} distinct non-default font families detected`);
   }
@@ -71,8 +88,12 @@ function scoreColor(f) {
   if (purpleHexes.length > 0 && hasGradient) {
     hit(r, -20, `purple/violet gradient heuristic matched (${purpleHexes.slice(0, 2).join(', ')} + gradient css)`, 'PURPLE GRADIENT');
   }
+  const ctaHits = f.hexColors.filter(hx => TAILWIND_DEFAULT_CTA_HEXES.has(hx));
+  if (ctaHits.length > 0) {
+    hit(r, -10, `default Tailwind blue/indigo CTA color detected (${ctaHits.join(', ')})`, 'DEFAULT CTA COLOR');
+  }
   const distinctSaturated = f.hexColors.filter(hx => !TAILWIND_GRAY_HEXES.has(hx));
-  if (distinctSaturated.length >= 3 && grayHits.length === 0 && purpleHexes.length === 0) {
+  if (distinctSaturated.length >= 3 && grayHits.length === 0 && purpleHexes.length === 0 && ctaHits.length === 0) {
     hit(r, 15, `${distinctSaturated.length} distinct custom hex colors, no default matches`);
   }
   r.score = clamp(r.score);
@@ -109,13 +130,17 @@ function scoreConsistency(f) {
 function scoreAiDetection(f, otherNegativeCount) {
   const r = makeResult(55);
   const gen = f.metaGenerator.toLowerCase();
-  const builderHit = BUILDER_GENERATORS.find(b => gen.includes(b));
-  if (builderHit) {
+  const builderGenHit = BUILDER_GENERATORS.find(b => gen.includes(b));
+  const builderClassHit = !builderGenHit && BUILDER_CLASS_RE.test(f.classCorpus);
+  const builderHit = builderGenHit || builderClassHit;
+  if (builderGenHit) {
     hit(r, -25, `<meta name="generator"> reveals site builder: ${f.metaGenerator}`, 'SITE BUILDER');
+  } else if (builderClassHit) {
+    hit(r, -15, 'Webflow-pattern utility classes detected in markup (w-button, w-container, ...)', 'BUILDER CLASS PATTERN');
   }
-  const lucideHit = LUCIDE_MARKERS.some(m => f.classCorpus.includes(m));
-  if (lucideHit) {
-    hit(r, -15, 'unmodified Lucide icon markers found in markup', 'LUCIDE ICONS');
+  const iconHit = ICON_LIBRARIES.find(lib => lib.patterns.some(p => f.classCorpus.includes(p)));
+  if (iconHit) {
+    hit(r, -15, `unmodified ${iconHit.name} icon markers found in markup`, 'DEFAULT ICON SET');
   }
   if (f.gradientSignals.backdropBlurCount > 0 && f.gradientSignals.rgbaCount > 0) {
     hit(r, -15, `glassmorphism heuristic matched (${f.gradientSignals.backdropBlurCount} backdrop-filter + rgba backgrounds)`, 'GLASSMORPHISM');
@@ -123,8 +148,8 @@ function scoreAiDetection(f, otherNegativeCount) {
   if (otherNegativeCount >= 2) {
     hit(r, -10, `${otherNegativeCount} other dimensions already flag AI-typical defaults`, 'CROSS-SIGNAL');
   }
-  if (!builderHit && !lucideHit && f.gradientSignals.backdropBlurCount === 0 && !f.likelySpa) {
-    hit(r, 20, 'no site-builder, Lucide, or glassmorphism signals detected');
+  if (!builderHit && !iconHit && f.gradientSignals.backdropBlurCount === 0 && !f.likelySpa) {
+    hit(r, 20, 'no site-builder, default icon set, or glassmorphism signals detected');
   }
   r.score = clamp(r.score);
   return r;
