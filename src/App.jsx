@@ -87,7 +87,8 @@ export default function App() {
       });
     };
     if (window.grecaptcha?.render) render();
-    else window.onRecaptchaLoad = render;
+    else if (window.__recaptchaLoaded) render();
+    else window.__recaptchaLoadCallback = render;
     return () => { delete window.__bareRecaptchaCb; };
   }, []);
 
