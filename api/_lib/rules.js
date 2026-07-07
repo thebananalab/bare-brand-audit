@@ -85,7 +85,7 @@ function scoreColor(f) {
     return hue !== null && hue >= 255 && hue <= 290;
   });
   const hasGradient = f.gradientSignals.gradientCount > 0 || (f.gradientSignals.backdropBlurCount > 0 && f.gradientSignals.rgbaCount > 0);
-  if (purpleHexes.length > 0 && hasGradient) {
+  if (purpleHexes.length >= 2 && hasGradient) {
     hit(r, -20, `purple/violet gradient heuristic matched (${purpleHexes.slice(0, 2).join(', ')} + gradient css)`, 'PURPLE GRADIENT');
   }
   const ctaHits = f.hexColors.filter(hx => TAILWIND_DEFAULT_CTA_HEXES.has(hx));
@@ -93,7 +93,7 @@ function scoreColor(f) {
     hit(r, -10, `default Tailwind blue/indigo CTA color detected (${ctaHits.join(', ')})`, 'DEFAULT CTA COLOR');
   }
   const distinctSaturated = f.hexColors.filter(hx => !TAILWIND_GRAY_HEXES.has(hx));
-  if (distinctSaturated.length >= 3 && grayHits.length === 0 && purpleHexes.length === 0 && ctaHits.length === 0) {
+  if (distinctSaturated.length >= 3 && grayHits.length === 0 && purpleHexes.length < 2 && ctaHits.length === 0) {
     hit(r, 15, `${distinctSaturated.length} distinct custom hex colors, no default matches`);
   }
   r.score = clamp(r.score);
